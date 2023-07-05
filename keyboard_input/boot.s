@@ -10,9 +10,24 @@ global keyboard_handler
 global read_port
 global write_port
 global load_idt
+global gdt_flush
 
 extern kmain
 extern keyboard_handler_main
+
+
+gdt_flush:
+	lgdt [esp + 4]	; Load the GDT
+	jmp	 .flush	; Use a Far jump to reload the CS register
+
+.flush:
+	mov ax, 0x08	;Load the data segment selector into Ax
+	mov ds, ax		; Load The data segment
+	mov es, ax		; Load the extra segment
+	mov fs, ax		; Load the FS Segment 
+	mov gs, ax		; Load the GS Segment
+	mov ss, ax		; Load the stack segment
+	ret
 
 read_port:
 	mov edx, [esp + 4]

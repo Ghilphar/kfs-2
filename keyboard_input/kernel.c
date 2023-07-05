@@ -1,4 +1,6 @@
 #include "keyboard_map.h"
+//#include "gdt.h"
+
 
 /* there are 25 lines each of 80 columns; each element takes 2 bytes */
 #define LINES 25
@@ -243,6 +245,7 @@ void keyboard_handler_main(void) {
 
 void kmain(void)
 {
+//gdt_install();
 	clear_screen();
 	idt_init();
 	kb_init();

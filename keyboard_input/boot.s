@@ -18,10 +18,10 @@ extern keyboard_handler_main
 
 gdt_flush:
 	lgdt [esp + 4]	; Load the GDT
-	jmp	 .flush	; Use a Far jump to reload the CS register
+	jmp	 0x18:kmain	; Use a Far jump to reload the CS register
 
 .flush:
-	mov ax, 0x08	;Load the data segment selector into Ax
+	mov ax, 0x18	;Load the data segment selector into Ax
 	mov ds, ax		; Load The data segment
 	mov es, ax		; Load the extra segment
 	mov fs, ax		; Load the FS Segment 
@@ -52,6 +52,9 @@ keyboard_handler:
 
 start:
 	cli
+	mov eax, cr0
+    or eax, 0x1
+    mov cr0, eax
 	mov esp, stack_space
 	call kmain
 	hlt 

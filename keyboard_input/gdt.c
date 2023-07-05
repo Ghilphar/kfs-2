@@ -40,18 +40,12 @@ void gdt_install()
     //Data Segment
     gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
 
-    //Stack Segment
-    gdt_set_gate(3, 0, 0xFFFFFFFF, 0x92, 0xCF);
-
     //User mode code Segment
-    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xFA, 0xCF);
+    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);
 
     //User mode data segment
-    gdt_set_gate(5, 0, 0xFFFFFFFF, 0xF2, 0xCF);
+    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
 
-    //User Stack segment
-    gdt_set_gate(6, 0, 0xFFFFFFFF, 0xF2, 0xCF);
-
-    gdt_flush();
+    //gdt_flush();
 }
 

@@ -7,13 +7,13 @@ CFLAGS = -m32 -fno-builtin -fno-exceptions -fno-stack-protector -nostdlib -nodef
 all: kernel
 
 kernel: boot.o kernel.o gdt.o
-	$(LD) -m elf_i386 -T link.ld -o kernel boot.o kernel.o
+	$(LD) -m elf_i386 -T link.ld -o kernel boot.o kernel.o gdt.o
 
 kernel.o: kernel.c
 	$(GCC) $(CFLAGS) -c kernel.c -o kernel.o
 
-#gdt.o: gdt.c
-#	$(GCC) $(CFLAGS) -c gdt.c -o gdt.o
+gdt.o: gdt.c
+	$(GCC) $(CFLAGS) -c gdt.c -o gdt.o
 
 boot.o: boot.s
 	$(NASM) -f elf32 boot.s -o boot.o

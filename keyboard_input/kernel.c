@@ -1,5 +1,5 @@
 #include "keyboard_map.h"
-//#include "gdt.h"
+#include "gdt.h"
 
 
 /* there are 25 lines each of 80 columns; each element takes 2 bytes */
@@ -22,6 +22,11 @@
 #define LEFT_ARROW_KEY_CODE 0x4B
 #define RIGHT_ARROW_KEY_CODE 0x4D
 #define ENTER_KEY_CODE 0x1C
+
+#define COMMAND_BUFFER_SIZE 1024
+
+char command_buffer[COMMAND_BUFFER_SIZE];
+unsigned int command_buffer_pos = 0;
 
 extern unsigned char keyboard_map[128];
 extern void keyboard_handler(void);
@@ -180,7 +185,7 @@ void keyboard_handler_main(void) {
     /* write EOI */
     write_port(0x20, 0x20);
 
-	unsigned short cursor_pos = current_loc / 2;  // each cell has 2 bytes
+	unsigned short cursor_pos = current_loc / 2;
     set_cursor(cursor_pos);
     status = read_port(KEYBOARD_STATUS_PORT);
     /* Lowest bit of status will be set if buffer is not empty */
@@ -200,11 +205,18 @@ void keyboard_handler_main(void) {
                 current_loc -= 2;  // move cursor back by one character
                 vidptr[current_loc] = ' ';  // clear the character
                 vidptr[current_loc+1] = 0x07;  // and its color attribute
+				if (command_buffer_pos > 0) {
+					command_buffer_pos--; //move buffer position back by one character
+					command_buffer[command_buffer_pos] = '\0'; // Clear the character in buffer	
+				}
             }
             return;
         }
         else if(keycode == ENTER_KEY_CODE) {
             kprint_newline();
+			command_buffer[command_buffer_pos] = '\0'; // end of command
+			//We can process the command here
+			command_buffer_pos = 0;
         }
         else if(keycode == UP_ARROW_KEY_CODE) {
 			if (current_loc > COLUMNS_IN_LINE * 2 - 1) {
@@ -234,8 +246,12 @@ void keyboard_handler_main(void) {
         }
         // Regular keys
         else {
-            vidptr[current_loc++] = keyboard_map[(unsigned char) keycode];
+			char ascii = keyboard_map[(unsigned char) keycode];
+            vidptr[current_loc++] = ascii;//keyboard_map[(unsigned char) keycode];
             vidptr[current_loc++] = color_table[color];
+			if (command_buffer_pos < COMMAND_BUFFER_SIZE - 1) {
+				command_buffer[command_buffer_pos++] = ascii; //store the character in buffer
+			}
         }
 	    if (current_loc >= SCREENSIZE) {
             scroll();
@@ -245,11 +261,16 @@ void keyboard_handler_main(void) {
 
 void kmain(void)
 {
-//gdt_install();
+	gdt_install();
 	clear_screen();
 	idt_init();
 	kb_init();
     set_cursor(current_loc / 2);
 
-	while(1);
+	while(1) { 
+		//if (command_buffer_pos == 0) {
+		//	kprint(command_buffer);
+		//	//kprint_newline();
+		//}
+	};
 }

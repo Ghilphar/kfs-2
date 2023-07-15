@@ -8,7 +8,7 @@ mov es, ax          ; ES points to video memory
 
 mov di, 0           ; DI points to the cursor
 mov si, 0           ; SI points to the buffer 
-mov cx, 0           ; CX points to the buffer size
+mov bp, 0           ; CX points to the buffer size
 mov cl, 0x07        ; Initial color
 
 get_input:
@@ -41,6 +41,12 @@ get_input:
     mov [buffer+si], cl  ; Save the color to the buffer
     inc si  ; Increment the buffer pointer
     add di, 2
+    cmp si, bp
+    jg inc_buffer
+    jmp get_input
+
+inc_buffer:
+    add bp, 2
     jmp get_input
 
 change_color:
@@ -80,7 +86,7 @@ enter_input:
     xor bx, bx    ; Clear bx
 
     print_loop:   ; Print out    buffer
-        cmp bx, si ; Compare bx with the current pointer position in the buffer
+        cmp bx, bp ; Compare bx with the current pointer position in the buffer
         je reset_buffer ; If we've reached the end of the buffer, reset it
         mov al, [buffer + bx] ; Otherwise, get the next character from the buffer
         mov [es:di], al
@@ -93,6 +99,7 @@ enter_input:
 
     reset_buffer: ; Reset the buffer and the buffer pointer
         xor si, si
+        xor bp, bp ;
         call new_line ; Create a new line
         jmp get_input
 

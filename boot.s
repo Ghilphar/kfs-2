@@ -27,7 +27,22 @@ gdt_code:    ; the kernel code segment descriptor
     dw 0x0      ;First 16 bits of the base
     db 0x0      ;+ 8 bits base (24)
     db 0x9A     ;define present, privilege and type property + type flags, 10011010
+    ;We call it the access byte.
+    ;First 4 bits represent:
+    ;Present bits. Allows an entry to refer to a valid segment. Must be set (1) for any valid segment.
+    ;DPL: Descriptor privilege level field. Contains the CPU Privilege level of the segment. 0 = highest privilege (kernel), 3 = lowest privilege (user applications).
+    ;S: Descriptor type bit. If clear (0) the descriptor defines a system segment (eg. a Task State Segment). If set (1) it defines a code or data segment.
+    
+    ;Last 4 bits,the type flags
+    ;E: Executable bit. If clear (0) the descriptor defines a data segment. If set (1) it defines a code segment which can be executed from.
+    ;DC: Direction bit/Conforming bit
+    ;RW: Readable bit/Writable bit.
+    ;A: Accessed bit. Best left clear (0), the CPU will set it when the segment is accessed.
     db 0xCF     ;other flags + last 4 bits of limit (1100 + F  (1111) )
+    ;G: Granularity flag, indicates the size the Limit value is scaled by. If clear (0), the Limit is in 1 Byte blocks (byte granularity). If set (1), the Limit is in 4 KiB blocks (page granularity).
+    ;DB: Size flag. If clear (0), the descriptor defines a 16-bit protected mode segment. If set (1) it defines a 32-bit protected mode segment. A GDT can have both 16-bit and 32-bit selectors at once.
+    ;L: Long-mode code flag. If set (1), the descriptor defines a 64-bit code segment. When set, DB should always be clear. For any other type of segment (other code types or any data segment), it should be clear (0).
+    ;reserved
     db 0x0      ;Last 8 bits of base
 
 gdt_data:    ; the kernel data segment descriptor
@@ -37,6 +52,15 @@ gdt_data:    ; the kernel data segment descriptor
     db 0x92     ;present = 1 (if the segment is used); privileges 00(kernel segment) ; type (1  For Code and Data Segment)  10010010
     db 0xCF
     db 0x0
+
+;"stack": kernel stack, used to stored the call stack during kernel execution
+gdt_stack:
+    dw 0x0      ;First 16 bits of the limit
+    dw 0x0      ;First 16 bits of the base
+    db 0x0      ;Next 8 bits of the base
+    db 0x97     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
+    db 0x0D     ;Flags: 32-bit segment and 4-KByte granularity
+    db 0x0      ;Last 8 bits of the base
 
 gdt_user_code:    ; the user code segment descriptor
     dw 0xFFFF
@@ -55,6 +79,14 @@ gdt_user_data:    ; the user data segment descriptor
     db 0x0
 
 ; User stack, used to store the call stack during execution in userland ; Ils palent de TSS? Task State Segment ?
+gdt_user_stack:
+    dw 0x0      ;First 16 bits of the limit
+    dw 0x0      ;First 16 bits of the base
+    db 0x0      ;Next 8 bits of the base
+    db 0xF7     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
+    db 0x0D     ;Flags: 32-bit segment and 4-KByte granularity
+    db 0x0      ;Last 8 bits of the base
+
 
 gdt_end:
 
@@ -103,4 +135,3 @@ loop:
     hlt
     jmp loop
 
-.size _start, . - _start

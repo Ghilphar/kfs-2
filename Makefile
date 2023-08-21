@@ -1,33 +1,58 @@
-GCC = i686-elf-gcc
-LD = ld
-NASM = nasm
+build_dir = build
+src = boot.s kernel.s
 
-CFLAGS = -m32 -fno-builtin -fno-exceptions -fno-stack-protector -nostdlib -nodefaultlibs
+OBJ = $(src:.s=.o)
 
-all: myos.iso
+ISO = kfs.iso
+BIN = ${build_dir}/kernel
+cfg = grub.cfg
 
-myos.iso: kernel
+LD := ld
+ldfile := link.ld
+LDFLAGS := -m elf_i386 -T ${ldfile}
+
+
+all: ${BIN} ${ISO}
+
+
+${ISO}: ${BIN}
+	@echo we create iso
+	# https://wiki.osdev.org/Bare_Bones#Booting_the_Kernel
 	mkdir -p isodir/boot/grub
-	cp mykernel.bin isodir/boot/mykernel.bin
+	cp ${BIN} isodir/boot/mykernel.bin
 	cp grub.cfg isodir/boot/grub/grub.cfg
-	grub-mkrescue -o myos.iso isodir
+	grub-mkrescue -o ${ISO} isodir
 
-kernel: boot.o kernel.o link.ld
-	$(LD) -m elf_i386 -T link.ld -o mykernel.bin boot.o kernel.o
+%.o: %.s
+	mkdir -p ${build_dir}
+	nasm -felf32 $<  -o $@
 
-kernel.o: kernel.c
-	$(GCC) $(CFLAGS) -c kernel.c -o kernel.o
+all: ${OBJ} link
+	@echo we create iso
+	# https://wiki.osdev.org/Bare_Bones#Booting_the_Kernel
+	mkdir -p isodir/boot/grub
+	cp build/kernel isodir/boot/mykernel.bin
+	cp grub.cfg isodir/boot/grub/grub.cfg
+	grub-mkrescue -o ${ISO} isodir
 
-boot.o: boot.s
-	$(NASM) -f elf32 boot.s -o boot.o
+#https://wiki.osdev.org/GRUB
+${BIN}: ${OBJ} ${ldfile}
+	@echo we link
+	${LD} ${LDFLAGS} ${OBJ} -o ${BIN}
 
-run: myos.iso
-	qemu-system-i386 -cdrom myos.iso
+clean: all
+	@rm *.o
+	@rm -rf ${build_dir}
+	@rm -rf isodir
 
-clean:
-	rm -f *.o
-	rm -f mykernel.bin
-	rm -f myos.iso
-	rm -rf isodir
+fclean: clean
+	@rm -f ${ISO}
 
-.PHONY: all run clean
+re: fclean
+	make
+
+run: all
+	 qemu-system-i386 -s -cdrom ${ISO}
+
+
+.PHONY: all re clean fclean link

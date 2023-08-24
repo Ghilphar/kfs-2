@@ -1,7 +1,8 @@
 section .data
 vga_buffer_ptr: dd 0xb8000   ; VGA text buffer start address
 bytes_to_print: db 64        ; Number of bytes to print (change as needed)
-attribute_byte: db 0x0F      ; White text on black background
+attribute_byte: db 0x0F     ; White text on black background
+bytes_per_line: dd 16       ; How many bytes to print per line before adding a newline
 
 section .text
 global printk
@@ -15,12 +16,12 @@ printk:
     push edx
     push esi
     mov  ecx, bytes_to_print
+    xor  esi, esi   ; esi will hold the number of bytes printed on the current line
     call print_loop
-
 print_loop:
     cmp ecx, 0
     je done
-    
+
     ; Load byte from memory address edi
     xor eax, eax
     mov al, [edi]
@@ -42,34 +43,47 @@ print_loop:
     mov al, [attribute_byte]
     mov byte [edx + 1], al
     add edx, 2
-
-    ; Print a space for separation
+    ; Print a space for separation after every 2 bytes
+    inc esi
+    cmp esi, 2
+    jnz skip_space
     mov al, ' '
     mov byte [edx], al
     mov al, [attribute_byte]
     mov byte [edx + 1], al
     add edx, 2
 
+    ; Reset esi after every 2 bytes
+    xor esi, esi
+
+skip_space:
     ; Update the VGA buffer pointer
     mov [vga_buffer_ptr], edx
+    ; Check if we've reached bytes_per_line
+    cmp esi, [bytes_per_line]
+    je add_newline
 
-    ; Advance to the next byte and check if you've printed 16 bytes
+continue_line:
+    ; Advance to the next byte
     inc edi
     dec ecx
-    test ecx, 15
-    jnz print_loop
-
-    ; Add a newline after every 16 bytes
-    call newline
     jmp print_loop
 
+add_newline:
+    call newline
+    ; Reset the counter
+    xor esi, esi
+    jmp continue_line
 
 newline:
-    ; Print a newline to the VGA
+    push eax
     push ebx
-    mov ebx, 64  ; Move to the next line
-    add [vga_buffer_ptr], ebx
-    pop  ebx
+    mov eax, [vga_buffer_ptr]
+    mov ebx, 160  ; 80 characters * 2 bytes per character
+    add eax, ebx
+    mov [vga_buffer_ptr], eax
+    pop ebx
+    pop eax
     ret
 
 done:

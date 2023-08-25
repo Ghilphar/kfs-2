@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -xeu
+
 if [ -z "$TARGET" ]; then
     echo "Must provide TARGET in environment" 1>&2
     exit 1
@@ -10,21 +11,19 @@ if [ -z "$PREFIX" ]; then
     exit 1
 fi
 
-export PREFIX="$HOME/mycross_cross"
-export TARGET=i686-elf
-export PATH="$PREFIX/bin:$PATH"
-
-
+# export PREFIX="$HOME/mycross_cross"
+# export TARGET=i686-elf
+# export PATH="$PREFIX/bin:$PATH"
 
 mkdir $PREFIX
 cd $PREFIX
 
-wget https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz
-wget https://ftp.gnu.org/gnu/bison/bison-3.7.4.tar.gz
-wget https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.gz
-wget https://ftp.gnu.org/gnu/grub/grub-2.06.tar.xz
-wget https://ftp.gnu.org/gnu/binutils/binutils-2.35.tar.gz
-wget https://ftp.gnu.org/gnu/texinfo/texinfo-6.8.tar.gz
+wget2 https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz
+wget2 https://ftp.gnu.org/gnu/bison/bison-3.7.4.tar.gz
+wget2 https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.gz
+wget2 https://ftp.gnu.org/gnu/grub/grub-2.06.tar.xz
+wget2 https://ftp.gnu.org/gnu/binutils/binutils-2.35.tar.gz
+wget2 https://ftp.gnu.org/gnu/texinfo/texinfo-6.8.tar.gz
 
 tar xvzf flex-2.6.4.tar.gz
 tar xvzf bison-3.7.4.tar.gz

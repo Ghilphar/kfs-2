@@ -32,7 +32,7 @@ gdt_code:    ; the kernel code segment descriptor
     ;Present bits. Allows an entry to refer to a valid segment. Must be set (1) for any valid segment.
     ;DPL: Descriptor privilege level field. Contains the CPU Privilege level of the segment. 0 = highest privilege (kernel), 3 = lowest privilege (user applications).
     ;S: Descriptor type bit. If clear (0) the descriptor defines a system segment (eg. a Task State Segment). If set (1) it defines a code or data segment.
-    
+
     ;Last 4 bits,the type flags
     ;E: Executable bit. If clear (0) the descriptor defines a data segment. If set (1) it defines a code segment which can be executed from.
     ;DC: Direction bit/Conforming bit
@@ -118,15 +118,15 @@ _start:
     ; in assembly as languages such as C cannot function without a stack.
     mov esp, stack_top
 
-    ; Enter the high-level kernel. 
+    ; Enter the high-level kernel.
     extern kernel_main
     call kernel_main
 
     ; If the system has nothing more to do, put the computer into an
-    ; infinite loop. This is done by disabling interrupts with cli (clear interrupt 
-    ; enable in eflags) and then waiting for the next interrupt with hlt 
-    ; (halt instruction). Since they are disabled, this will lock up the computer. 
-    ; If the halt instruction ever wakes up due to a non-maskable interrupt occurring 
+    ; infinite loop. This is done by disabling interrupts with cli (clear interrupt
+    ; enable in eflags) and then waiting for the next interrupt with hlt
+    ; (halt instruction). Since they are disabled, this will lock up the computer.
+    ; If the halt instruction ever wakes up due to a non-maskable interrupt occurring
     ; or due to system management mode, we jump back to the halt instruction.
 
     cli
@@ -134,4 +134,3 @@ _start:
 loop:
     hlt
     jmp loop
-

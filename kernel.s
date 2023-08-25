@@ -6,15 +6,10 @@ BYTES_PER_ROW:    dd 16       ; Define how many bytes to print on a line before 
 VGA_LINE_LENGTH:  dd 160      ; Define the length of a VGA line (80 characters * 2 bytes/character).
 
 ; LOGIC:
-;   1. Entrypoint kernel_main calls function printk and feeds it the top of the stack (esp) as parameter in edi
-;   2. Function printk sets two registers to values used for looping over the values in memory:
-;     - ecx gets the constant PRINT_BYTE_COUNT
-;     - esi is set to 0, designating the number of bytes printed on current line.
-;
-;
-;
-;
-;
+;   1. Entrypoint KERNEL_MAIN calls function PRINTK and feeds it the address of the top of the stack (esp) as parameter in edi
+;   2. Function PRINTK sets two registers to values used for looping over the values in memory:
+;     - ecx gets the constant PRINT_BYTE_COUNT, the total number of bytes to print before terminating
+;     - esi is set to 0, designating the number of bytes printed on current line
 ;
 
 section .text             ; Text section, where the executable code is written.
@@ -22,9 +17,6 @@ section .text             ; Text section, where the executable code is written.
 global printk             ; Make printk function accessible from other modules.
 global kernel_main        ; Make kernel_main function accessible from other modules.
 
-print_newline:            ; Function to print a newline and then continue the loop.
-    call newline          ; Call the function that increments VGA address to move to the next line.
-    jmp continue_loop     ; Continue with the loop.
 
 print_byte_as_hex:        ; Function to convert the byte in AL to hex and print it to VGA buffer.
     xor eax, eax          ; Clear EAX register.
@@ -33,6 +25,14 @@ print_byte_as_hex:        ; Function to convert the byte in AL to hex and print 
     call print_char_al    ; Print the hex character in AL.
     call print_char_ah    ; Print the hex character in AH.
     ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; PRINT_CHAR_AL & PRINT_CHAR_AH DO EXACTLY THE SAME THING BUT ;
+; DO SO BY MANIPULATING DIFFERENT REGISTERS. THE MAIN IDEA IS ;
+; THAT THEY BOTH WRITE BYTES (HEX) TO THE VGA BUFFER:         ;
+; AL HOLDS THE HEX VALUE OF LOW NIBBLE OF THE VALUE IN MEMORY ;
+; AH HOLDS THE HEX VALUE OF HIGH NIBBLE OF THE VALUE          ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 print_char_al:                    ; Function to print the char in AL to the VGA buffer with specified text attributes.
     mov edx, [VGA_START_ADDR]     ; Load VGA start address into EDX.
@@ -52,20 +52,29 @@ print_char_ah:                    ; Function to print the char in AH to the VGA 
     add dword [VGA_START_ADDR], 2 ; Increment VGA buffer address by 2 (char + attribute).
     ret
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 newline:                                        ; Function to add a newline to VGA output.
     add dword [VGA_START_ADDR], VGA_LINE_LENGTH ; Increment VGA buffer address to move to the next line.
     ret
 
-byte_to_hex:              ; Function to convert a byte in EAX to two hex characters in AX.
-    push ebx              ; Save EBX onto the stack.
-    mov  ebx, eax         ; Copy AL to BL.
-    shr  ebx, 4           ; Shift BL right by 4 bits to get the high nibble.
-    and  ebx, 0x0F        ; Mask high nibble to get only the last 4 bits.
-    call nibble_to_hex    ; Convert the 4 bits in BL to a hex character in AL.
-    mov  ah, al           ; Store the result in AH.
-    and  eax, 0x0F        ; Mask EAX to get the low nibble.
-    call nibble_to_hex    ; Convert the 4 bits in AL to a hex character.
-    pop ebx               ; Restore EBX from the stack.
+byte_to_hex:           ; Function to convert a byte in EAX to two hex characters in AX.
+    push ebx           ; Save EBX onto the stack.
+    mov  ebx, eax      ; Copy AL to BL.
+    shr  ebx, 4        ; Shift BL right by 4 bits to get the high nibble.
+    and  ebx, 0x0F     ; Mask high nibble to get only the last 4 bits.
+    call nibble_to_hex ; Convert the 4 bits in BL to a hex character in AL.
+    mov  ah, al        ; Store the result in AH.
+    and  eax, 0x0F     ; Mask EAX to get the low nibble.
+    call nibble_to_hex ; Convert the 4 bits in AL to a hex character.
+    pop ebx            ; Restore EBX from the stack.
+    ret
+
+is_digit:
+    add al, '0'        ; Convert the value in AL to a digit.
     ret
 
 nibble_to_hex:         ; Function to convert 4 bits in AL to a hex character.
@@ -74,18 +83,18 @@ nibble_to_hex:         ; Function to convert 4 bits in AL to a hex character.
     add al, 'A' - 10   ; Otherwise, convert it to an uppercase letter.
     ret
 
-is_digit:
-    add al, '0'        ; Convert the value in AL to a digit.
-    ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; PRINT_LOOP FUNCTION FALL-THROUGHS BLOCK START ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 print_space:                ; Function to print a space character to the VGA buffer.
     mov al, ' '             ; Load space character into AL.
     call print_char_al      ; Print the space character.
     ret
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;; PRINT_LOOP FUNCTION FALL-THROUGHS BLOCK START ;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+print_newline:              ; Function to print a newline and then continue the loop.
+    call newline            ; Call the function that increments VGA address to move to the next line.
+    jmp continue_loop       ; Continue with the loop.
 
 print_loop:                 ; Main print loop function.
     cmp ecx, 0              ; Check if we have printed all bytes.
@@ -100,7 +109,7 @@ print_loop:                 ; Main print loop function.
 no_space:
     cmp esi, BYTES_PER_ROW  ; Check if we've reached the end of the current line.
     je print_newline        ; If we have, print a newline.
-    
+
 continue_loop:
     inc edi                 ; Move to the next byte in memory.
     dec ecx                 ; Decrement the byte counter.
@@ -108,6 +117,7 @@ continue_loop:
 
 end_of_print_loop:          ; Explicit label to end the print loop.
     ret
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;; PRINT_LOOP FUNCTION FALL-THROUGHS BLOCK END ;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

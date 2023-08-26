@@ -117,7 +117,6 @@ _start:
     ; stack (as it grows downwards on x86 systems). This is necessarily done
     ; in assembly as languages such as C cannot function without a stack.
     mov esp, stack_top
-
     ; Enter the high-level kernel.
     extern kernel_main
     call kernel_main

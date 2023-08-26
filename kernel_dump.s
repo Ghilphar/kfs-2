@@ -2,26 +2,26 @@ section .data
 VGA_START_ADDR:   dd 0xb8000
 BYTES_PER_ROW:    dd 16
 VGA_LINE_LENGTH:  dd 160
-TEXT_ATTR:        dd 0x0F00      ; Extend to 32-bits
+TEXT_ATTR:        dd 0x0F00             ; Extend to 32-bits
 hex_chars         db "0123456789ABCDEF"
-sample db "BIG TEST", 0
-num_rows dd 16                      ; For example, to display 4 rows
+num_rows dd 32                          ; For example, to display 4 rows
+sample db "AAAABBBBCCCCDDDDEEEEFFFFBIG TEST ABCDEF", 0
 
 section .text
 global kernel_main
 
 print_address:
     pusha
-    mov ecx, 8  ; We are processing half-bytes, so we iterate 8 times for a 32-bit address.
+    mov ecx, 8  ; Iterate 8 times for a 32-bit address.
 
 .addr_loop:
-    rol eax, 4  ; Rotate left to process the highest nibble
-    and eax, 0x0F ; Mask the last 4 bits 
+    rol eax, 4                  ; Rotate left to process the highest nibble
+    and eax, 0x0F               ; Mask the last 4 bits 
     lea ebx, [hex_chars]
     movzx edx, byte [ebx + eax] ; Fetch the hex character
-    or edx, [TEXT_ATTR]   ; Add the attribute
-    mov [esi], edx ; Store the character to VGA buffer
-    add esi, 2 ; Move to the next position in VGA buffer
+    or edx, [TEXT_ATTR]         ; Add the attribute
+    mov [esi], edx              ; Store the character to VGA buffer
+    add esi, 2                  ; Move to the next position in VGA buffer
 
     loop .addr_loop
 
@@ -90,20 +90,15 @@ hexdump:
     ; Save initial state of edi and esi for each row iteration
     push edi
     push esi
-
     ; Dump the current row
     call dump_row
-
     ; Restore initial state of edi and esi
     pop esi
     pop edi
-
     ; Move edi to the next block of memory for the next row
     add edi, [BYTES_PER_ROW]
-
     ; Move esi to the start of the next line on the VGA buffer
     add esi, [VGA_LINE_LENGTH]
-
     ; Decrement row counter and loop if more rows are left
     dec eax
     test eax, eax
@@ -116,7 +111,6 @@ dump_row:
     pusha
     mov eax, edi
     call print_address
-
     mov ecx, [BYTES_PER_ROW]
 
 .dump_loop:
@@ -134,13 +128,11 @@ dump_row:
 .continue:
     test ecx, ecx
     jnz .dump_loop
-
     ; Add a space between hex and ascii display
     mov edx, '|'
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
-
     mov ecx, [BYTES_PER_ROW]
 
 .ascii_loop:
@@ -158,7 +150,7 @@ dump_row:
     add esi, 2
 
     ; Go to next line
-    add esi, (80*2 - 144)
+    add esi, 16
 
     popa
     ret
@@ -166,8 +158,9 @@ dump_row:
 kernel_main:
     pusha
     mov esi, [VGA_START_ADDR]
+    ;add byte [sample], 16
+    ;mov edi, sample
     mov edi, esp
-    push sample
     call hexdump
     popa
     ret

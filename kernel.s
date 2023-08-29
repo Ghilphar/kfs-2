@@ -1,6 +1,6 @@
 section .data                 ; Data section, where constants and global variables are defined.
 VGA_START_ADDR:   dd 0xb8000  ; Start address of VGA text buffer in memory.
-PRINT_BYTE_COUNT: db 64       ; Define the number of bytes to print.
+PRINT_BYTE_COUNT: db 64      ; Define the number of bytes to print.
 TEXT_ATTR:        db 0x0F     ; Define text attributes (white text on black background).
 BYTES_PER_ROW:    dd 16       ; Define how many bytes to print on a line before moving to the next line.
 VGA_LINE_LENGTH:  dd 160      ; Define the length of a VGA line (80 characters * 2 bytes/character).
@@ -16,6 +16,39 @@ section .text             ; Text section, where the executable code is written.
 
 global printk             ; Make printk function accessible from other modules.
 global kernel_main        ; Make kernel_main function accessible from other modules.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; LOOP TO CLEAR VGA MEMORY ;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+clear_vga:
+    ; Load VGA start address into EDI.
+    mov edi, [VGA_START_ADDR]
+
+    ; Load the end address of VGA into EBX.
+    ; 80 columns * 25 rows * 2 bytes = 4000 bytes
+    mov ecx, 0xB8A0           ; VGA_END_ADDR = VGA_START_ADDR + 4000
+    add ecx, [VGA_START_ADDR]
+    mov al, [TEXT_ATTR]       ; Load text attribute into AL
+
+.clear_loop:
+    ; Compare EDI with VGA_END_ADDR
+    cmp edi, ecx
+    je .end_clear              ; If we reached the end, jump out of the loop
+    ; Clear character byte
+    mov byte [edi], 0x00
+    ; Set attribute byte
+    mov byte [edi+1], al
+    ; Move to next character (2 bytes per character).
+    add edi, 2
+    jmp .clear_loop
+
+.end_clear:
+    ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 print_byte_as_hex:        ; Function to convert the byte in AL to hex and print it to VGA buffer.
@@ -140,8 +173,7 @@ done_cleanup: ; Cleanup function to restore register values.
     pop ebx   ; Restore the value of EBX.
     ret
 
-kernel_main:     ; Main entry point for the kernel.
-    pusha        ; Save all general-purpose register values.
+kernel_main:  ; Main entry point for the kernel.
     mov edi, esp ; Load the top of the stack into EDI.
     call printk  ; Call the printk function.
     popa         ; Restore all general-purpose register values.

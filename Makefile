@@ -1,5 +1,5 @@
 build_dir = build
-src = boot.s kernel.s
+src = boot.s kernel_dump.s
 
 OBJ = $(src:.s=.o)
 

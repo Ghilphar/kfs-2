@@ -1,44 +1,18 @@
 section .data
-VGA_START_ADDR:   dd 0xb8000
-BYTES_PER_ROW:    dd 16
-VGA_LINE_LENGTH:  dd 160
-TEXT_ATTR:        dd 0x0F00             ; Extend to 32-bits
-hex_chars         db "0123456789ABCDEF"
-num_rows dd 32                          ; For example, to display 4 rows
-sample db "AAAABBBBCCCCDDDDEEEEFFFFBIG TEST ABCDEF", 0
+VGA_START_ADDR:   dd 0xb8000                           ; VGA buffer's starting address
+BYTES_PER_ROW:    dd 16                               ; Number of bytes to display per row
+VGA_LINE_LENGTH:  dd 160                              ; Length of one line in the VGA buffer
+TEXT_ATTR:        dd 0x0F00                           ; Extend to 32-bits
+hex_chars         db "0123456789ABCDEF", 0            ; Hexadecimal character lookup table
+num_rows          dd 16                               ; For example, to display 4 rows
+sample            db "AAAABBBBCCCCDDDDEEEEFFFFBIG TEST ABCDEF", 0 ; Sample data
 
 section .text
 global kernel_main
 
-print_address:
-    pusha
-    mov ecx, 8  ; Iterate 8 times for a 32-bit address.
-
-.addr_loop:
-    rol eax, 4                  ; Rotate left to process the highest nibble
-    and eax, 0x0F               ; Mask the last 4 bits 
-    lea ebx, [hex_chars]
-    movzx edx, byte [ebx + eax] ; Fetch the hex character
-    or edx, [TEXT_ATTR]         ; Add the attribute
-    mov [esi], edx              ; Store the character to VGA buffer
-    add esi, 2                  ; Move to the next position in VGA buffer
-
-    loop .addr_loop
-
-    ; Add two spaces for formatting after the address
-    mov edx, ' ' 
-    or edx, [TEXT_ATTR]
-    mov [esi], edx
-    add esi, 2
-    mov [esi], edx
-    add esi, 2
-
-    popa
-    ret
-
 print_byte_as_hex:
-    ; First half of the byte
-    shr eax, 4
+    push eax                                           ; Save the original byte value
+    shr eax, 4                                         ; First half of the byte
     and al, 0x0F
     lea ebx, [hex_chars]
     add ebx, eax
@@ -47,8 +21,8 @@ print_byte_as_hex:
     mov [esi], edx
     add esi, 2
 
-    ; Second half of the byte
-    and eax, 0x0F
+    pop eax                                            ; Restore the original byte value
+    and eax, 0x0F                                      ; Second half of the byte
     lea ebx, [hex_chars]
     add ebx, eax
     movzx edx, byte [ebx]
@@ -56,12 +30,10 @@ print_byte_as_hex:
     mov [esi], edx
     add esi, 2
 
-    ; Space after each byte
-    mov edx, ' '
+    mov edx, ' '                                       ; Space after each byte
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
-
     ret
 
 print_ascii:
@@ -76,35 +48,45 @@ print_ascii:
     ret
 
 .non_printable:
-    mov edx, '.'
+    mov edx, '.'                                       ; Replace non-printable with dot
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
     ret
 
-hexdump:
-    pusha
-    mov eax, [num_rows]
+print_address:
+    push eax
+    push ecx
+    push edx
+    push ebx
+    mov ecx, 8                                         ; Iterate 8 times for a 32-bit address.
+    mov ebx, eax                                       ; Backup the original value of eax
 
-.row_loop:
-    ; Save initial state of edi and esi for each row iteration
-    push edi
-    push esi
-    ; Dump the current row
-    call dump_row
-    ; Restore initial state of edi and esi
-    pop esi
-    pop edi
-    ; Move edi to the next block of memory for the next row
-    add edi, [BYTES_PER_ROW]
-    ; Move esi to the start of the next line on the VGA buffer
-    add esi, [VGA_LINE_LENGTH]
-    ; Decrement row counter and loop if more rows are left
-    dec eax
-    test eax, eax
-    jnz .row_loop
+.addr_loop:
+    mov eax, ebx                                       ; Restore original eax for each iteration
+    shr eax, 28                                        ; Start with the highest nibble
+    and eax, 0x0F
+    lea edx, [hex_chars]
+    movzx edx, byte [edx + eax]
+    or edx, [TEXT_ATTR]
+    mov [esi], edx
+    add esi, 2
+    shl ebx, 4                                         ; Shift for the next iteration
 
-    popa
+    loop .addr_loop
+
+    mov edx, ':'                                       ; Add a colon after address
+    or edx, [TEXT_ATTR]
+    mov [esi], edx
+    add esi, 2
+    mov edx, ' '                                       ; Followed by a space
+    mov [esi], edx
+    add esi, 2
+
+    pop eax
+    pop ecx
+    pop edx
+    pop ebx
     ret
 
 dump_row:
@@ -119,21 +101,24 @@ dump_row:
     add edi, 1
     dec ecx
     cmp ecx, 8
+
     jne .continue
-    ; Additional space for formatting after 8 bytes
-    mov edx, ' '
+    mov edx, ' '                                       ; Additional space after 8 bytes
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
+
 .continue:
     test ecx, ecx
     jnz .dump_loop
-    ; Add a space between hex and ascii display
-    mov edx, '|'
+    
+    mov edx, '|'                                       ; Delimiter at end of hex
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
-    mov ecx, [BYTES_PER_ROW]
+    
+    mov ecx, [BYTES_PER_ROW]                           ; Reset counter for ASCII loop
+    sub edi, [BYTES_PER_ROW]
 
 .ascii_loop:
     movzx eax, byte [edi]
@@ -143,24 +128,34 @@ dump_row:
     test ecx, ecx
     jnz .ascii_loop
 
-    ; End the line with a '|'
-    mov edx, '|'
+    mov edx, '|'                                       ; Delimiter at end of ASCII
     or edx, [TEXT_ATTR]
     mov [esi], edx
     add esi, 2
 
-    ; Go to next line
-    add esi, 16
-
     popa
+    ret
+
+hexdump:
+    mov eax, [num_rows]
+
+.row_loop:
+    push edi                                           ; Save state for each row iteration
+    push esi
+    call dump_row
+    pop esi
+    pop edi
+    add edi, [BYTES_PER_ROW]
+    add esi, [VGA_LINE_LENGTH]
+    dec eax
+    test eax, eax
+    jnz .row_loop
     ret
 
 kernel_main:
     pusha
     mov esi, [VGA_START_ADDR]
-    ;add byte [sample], 16
-    ;mov edi, sample
-    mov edi, esp
+    mov edi, sample
     call hexdump
     popa
     ret

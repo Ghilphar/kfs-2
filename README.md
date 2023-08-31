@@ -33,7 +33,7 @@ Most `.s` files come in-full or partly from [OSDEV](https://wiki.osdev.org/Bare_
 
 You will find a kernel files in the repo:
 
-- `kernel.c`
+- `kernel_dump.s`
 
 The `Makefile` will do all necessary
 

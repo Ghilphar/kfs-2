@@ -55,12 +55,12 @@ gdt_data:    ; the kernel data segment descriptor
 
 ;"stack": kernel stack, used to stored the call stack during kernel execution
 gdt_stack:
-    dw 0x0      ;First 16 bits of the limit
+    dw 0xFFFF      ;First 16 bits of the limit
     dw 0x0      ;First 16 bits of the base
     db 0x0      ;Next 8 bits of the base
-    db 0x97     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
+    db 0x96     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
     db 0x0D     ;Flags: 32-bit segment and 4-KByte granularity
-    db 0x0      ;Last 8 bits of the base
+    db 0xF      ;Last 8 bits of the base
 
 gdt_user_code:    ; the user code segment descriptor
     dw 0xFFFF
@@ -80,12 +80,12 @@ gdt_user_data:    ; the user data segment descriptor
 
 ; User stack, used to store the call stack during execution in userland ; Ils palent de TSS? Task State Segment ?
 gdt_user_stack:
-    dw 0x0      ;First 16 bits of the limit
+    dw 0xFFFF      ;First 16 bits of the limit
     dw 0x0      ;First 16 bits of the base
     db 0x0      ;Next 8 bits of the base
-    db 0xF7     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
+    db 0xF6     ;Access byte: Present, Accessed, Readable/Writable, Expand Down (This make it a stack), and Privilege Level 0
     db 0x0D     ;Flags: 32-bit segment and 4-KByte granularity
-    db 0x0      ;Last 8 bits of the base
+    db 0xF      ;Last 8 bits of the base
 
 
 gdt_end:
@@ -103,6 +103,7 @@ stack_top:
 ; The bootloader will search for this symbol to initiate the kernel
 section .text
 global _start
+global stack_bottom
 _start:
     lgdt [gdt_descriptor]  ; load the GDT // gdt_descriptor is hard coded less flexible than the solution of WikiOsDev but more readable.
     jmp 0x08:.reload_CS    ; far jump to reload CS
